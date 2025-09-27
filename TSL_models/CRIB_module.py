@@ -7,8 +7,6 @@ import torch.nn as nn
 from torch.nn.utils import weight_norm
 from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
 
-import muyi.utils as mu
-
 from .CRIB_utils import TriangularCausalMask
 from .CRIB_embedding import (
     PositionalEmbedding,

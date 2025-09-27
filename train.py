@@ -10,7 +10,6 @@ from contextlib import nullcontext
 import argparse
 
 
-import muyi.utils as mu
 from utils import load_dataset, criterion_mape, set_seed
 from TSL_models import CRIB
 from TSL_models import DLinear, SegRNN, Transformer, iTransformer, PatchTST, TSMixer,WPMixer, PAttn, KANAD, MultiPatchFormer, FreTS # want input [Batch, seq_len, Channels]
