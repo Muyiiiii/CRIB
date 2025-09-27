@@ -46,7 +46,6 @@ matplotlib-inline==0.1.7
 mercantile==1.2.1
 mpmath==1.3.0
 msgpack==1.1.0
-Muyi==0.0.8
 mypy-extensions==1.0.0
 ndindex==1.8
 nest-asyncio==1.6.0
