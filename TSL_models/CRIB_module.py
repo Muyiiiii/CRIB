@@ -329,7 +329,7 @@ class FlashAttention(nn.Module):
         # _, S, _, D = values.shape # [batch_size, pred_len, hidden_size, embed_size]
         # scale = self.scale or 1. / math.sqrt(E)
 
-        # scores = torch.einsum("blhe,bshe->bhls", queries, keys) # head和head之间不用计算，因为并行也是浪费，但transpose之后head和head的计算能并行了
+        # scores = torch.einsum("blhe,bshe->bhls", queries, keys) # head and head之间不用计算，因为并行也是浪费，但transpose之后head和head的计算能并行了
 
         # A = self.dropout(torch.softmax(scale * scores, dim=-1))
         # V = torch.einsum("bhls,bshd->blhd", A, values)
@@ -341,7 +341,7 @@ class FlashAttention(nn.Module):
 
         qkv = torch.stack((queries, keys, values), dim=2)
 
-        # 设置 alibi slopes
+        # set alibi slopes
         alibi_slopes = torch.randn(queries.shape[2]).to(qkv.device)
 
         output = flash_attn_qkvpacked_func(

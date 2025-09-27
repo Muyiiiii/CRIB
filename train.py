@@ -218,9 +218,9 @@ def validation(args, model, val_loader, criterion, val_type="val"):
             
             with autocast_context:
                 if args.model == "CRIB":
-                    # 为 CRIB 模型应用掩码 (mask)
+                    # apply mask to CRIB model
                     batch_x = batch_x * mask_1[:, :P, ...]
-                    # 运行 CRIB 模型的前向传播
+                    # forward
                     enc_out_1, enc_attns_1, enc_out_2, enc_attns_2, preds, py_z, kl = model(batch_x, x_mark=None, test_flag=True)
                 
                 else:  # TSL models: DLinear etc.

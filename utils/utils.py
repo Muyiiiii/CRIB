@@ -170,14 +170,14 @@ def get_missing_mask(array,rate=0.2):
 
 def get_col_dropout_mask(array, rate=0.2):
     """
-    生成特征/传感器（整列）缺失的掩码。
+    generate mask for feature/sensor dropout.
     
-    参数:
-    array (np.ndarray): 输入的Numpy数组,必须是二维的。
-    rate (float): 缺失的特征（列）所占的比例。
+    Parameters:
+    array (np.ndarray): input numpy array, must be 2-dimensional.
+    rate (float): the ratio of missing features/sensors.
     
-    返回:
-    np.ndarray: 与输入数组形状相同的掩码,0表示缺失,1表示观测到。
+    Returns:
+    np.ndarray: mask with the same shape as the input array, 0 means missing, 1 means observed.
     """
     if array.ndim != 2:
         raise ValueError("Input array must be 2-dimensional for feature dropout.")
@@ -187,30 +187,30 @@ def get_col_dropout_mask(array, rate=0.2):
     mask = np.ones_like(array)
     num_cols = array.shape[1]
     
-    # 计算需要缺失的列数
+    # calculate the number of missing columns
     num_missing_cols = int(num_cols * rate)
     if num_missing_cols == 0 and rate > 0:
-        num_missing_cols = 1 # 确保至少有一列缺失
+        num_missing_cols = 1 # ensure at least one column is missing
     
-    # 随机选择要缺失的列的索引
+    # randomly select the indices of the columns to be missing
     missing_col_indices = np.random.choice(num_cols, size=num_missing_cols, replace=False)
     
-    # 将这些列全部设置为0（缺失）
+    # set all the columns to 0 (missing)
     mask[:, missing_col_indices] = 0
     
     return mask
 
 def get_block_missing_mask(array, rate=0.2, num_blocks=1):
     """
-    生成块状缺失的掩码。
+    generate mask for block missing.
     
-    参数:
-    array (np.ndarray): 输入的Numpy数组,用于获取其形状。
-    rate (float): 缺失率,介于0和1之间。
-    num_blocks (int): 要生成的缺失块的数量。
+    Parameters:
+    array (np.ndarray): input numpy array, used to get its shape.
+    rate (float): missing rate, between 0 and 1.
+    num_blocks (int): the number of missing blocks to be generated.
     
-    返回:
-    np.ndarray: 与输入数组形状相同的掩码,0表示缺失,1表示观测到。
+    Returns:
+    np.ndarray: mask with the same shape as the input array, 0 means missing, 1 means observed.
     """
     if rate == 0:
         return np.ones_like(array)
@@ -221,7 +221,7 @@ def get_block_missing_mask(array, rate=0.2, num_blocks=1):
     total_missing_elements = int(array.size * rate)
     missing_per_block = total_missing_elements // num_blocks
     
-    # 计算每个小块的大约边长
+    # calculate the approximate side length of each small block
     block_side = int(np.sqrt(missing_per_block))
     if block_side == 0:
         block_side = 1
@@ -230,12 +230,12 @@ def get_block_missing_mask(array, rate=0.2, num_blocks=1):
     block_width = block_side
 
     for _ in range(num_blocks):
-        # 随机选择块的左上角起点
-        # 确保块不会超出数组边界
+        # randomly select the top-left corner of the block
+        # ensure that the block does not exceed the array boundary
         start_row = np.random.randint(0, array.shape[0] - block_height + 1)
         start_col = np.random.randint(0, array.shape[1] - block_width + 1)
         
-        # 将选定的块区域设置为0（缺失）
+        # set the selected block area to 0 (missing)
         mask[start_row : start_row + block_height, 
              start_col : start_col + block_width] = 0
              
@@ -243,15 +243,15 @@ def get_block_missing_mask(array, rate=0.2, num_blocks=1):
 
 def get_block_missing_mask_fixed_size(array, rate=0.2, block_size=(10, 10)):
     """
-    生成具有固定大小块的缺失掩码。
+    generate mask for block missing with fixed size.
     
-    参数:
-    array (np.ndarray): 输入的Numpy数组,用于获取其形状。
-    rate (float): 缺失率,介于0和1之间。
-    block_size (tuple): 一个包含 (高度, 宽度) 的元组,定义了每个缺失块的大小。
+    Parameters:
+    array (np.ndarray): input numpy array, used to get its shape.
+    rate (float): missing rate, between 0 and 1.
+    block_size (tuple): a tuple containing (height, width), defining the size of each missing block.
     
-    返回:
-    np.ndarray: 与输入数组形状相同的掩码,0表示缺失,1表示观测到。
+    Returns:
+    np.ndarray: mask with the same shape as the input array, 0 means missing, 1 means observed.
     """
     if rate == 0:
         return np.ones_like(array)
@@ -260,30 +260,30 @@ def get_block_missing_mask_fixed_size(array, rate=0.2, block_size=(10, 10)):
 
     mask = np.ones_like(array)
     
-    # 从 block_size 获取块的高度和宽度
+    # get the height and width of the block from block_size
     block_height, block_width = block_size
     
-    # 计算总共需要缺失的元素数量
+    # calculate the total number of elements to be missing
     total_missing_elements = int(array.size * rate)
     
-    # 计算一个块包含的元素数量
+    # calculate the number of elements in a block
     elements_per_block = block_height * block_width
     
-    # 避免除以零的错误
+    # avoid division by zero error
     if elements_per_block == 0:
         return mask
         
-    # 根据总缺失数和每块的元素数,计算需要多少个块
+    # calculate the number of blocks needed based on the total number of missing elements and the number of elements in each block
     num_blocks = total_missing_elements // elements_per_block
     
-    # 如果缺失率大于0,但计算出的块数为0,则至少生成一个块
+    # if the missing rate is greater than 0, but the number of blocks is 0, then at least generate one block
     if num_blocks == 0 and rate > 0:
         num_blocks = 1
         
     for _ in range(num_blocks):
-        # 随机选择块的左上角起点
-        # 确保块不会超出数组边界
-        # +1 是为了让 randint 的上界包含最后一个可能的起始点
+        # randomly select the top-left corner of the block
+        # ensure that the block does not exceed the array boundary
+        # +1 is to ensure that the upper bound of randint includes the last possible starting point
         if array.shape[0] - block_height < 0 or array.shape[1] - block_width < 0:
             print("Warning: Block size is larger than array size. Skipping.")
             continue
@@ -291,7 +291,7 @@ def get_block_missing_mask_fixed_size(array, rate=0.2, block_size=(10, 10)):
         start_row = np.random.randint(0, array.shape[0] - block_height + 1)
         start_col = np.random.randint(0, array.shape[1] - block_width + 1)
         
-        # 将选定的块区域设置为0（缺失）
+        # set the selected block area to 0 (missing)
         mask[start_row : start_row + block_height, 
              start_col : start_col + block_width] = 0
              
@@ -301,9 +301,9 @@ def get_block_missing_mask_fixed_size(array, rate=0.2, block_size=(10, 10)):
 
 def Add_Window_Horizon(data, mask_1, window_size, horizon_size):
     '''
-    :param data: shape [time_len, var_num]
+    :param data: shape [time_len, var_num] [time_length, variable_number]
     :param window_size:
-    :param horizon_size:
+    :param horizon_size: [prediction_length]
     :return: X is [win_num, win_len, var_num], Y is [win_num, hor_len, var_num]
     '''
     length = len(data)
