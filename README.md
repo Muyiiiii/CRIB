@@ -10,6 +10,6 @@ Set datasets well in the './data'. Use the provided bash script for batch traini
 
 ```bash
 
-bashbash/bash_train.sh
+bash bash/bash_train.sh
 
 ```
