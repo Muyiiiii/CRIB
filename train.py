@@ -264,7 +264,7 @@ def run_validation_and_print(args, model, val_loader, test_loader, criterion):
         val_loss, val_mae, val_mse, val_mape = validation(args, model, val_loader, criterion, val_type="val")
         test_loss, test_mae, test_mse, test_mape = validation(args, model, test_loader, criterion, val_type="test")
     
-    mu.color_print(
+    print(
         f'val_loss: {val_loss:.4f}, test_loss: {test_loss:.4f}, '
         f'test_mae: {test_mae[0].item():.4f}+{test_mae[1].item():.4f}, '
         f'test_mse: {test_mse[0].item():.4f}+{test_mse[1].item():.4f}, '
@@ -274,7 +274,7 @@ def run_validation_and_print(args, model, val_loader, test_loader, criterion):
     return val_loss, val_mae, val_mse, val_mape, test_loss, test_mae, test_mse, test_mape
 
 
-mu.color_print(f'{args.exp_type}-{args.dataset}-{args.model}, seed:{args.seed}, missing_pattern:{args.missing_pattern}, missing_rate: {args.missing_rate}, loss_type: {args.loss_type}, seq: {args.seq_len}, pred: {args.pred_len}')
+print(f'{args.exp_type}-{args.dataset}-{args.model}, seed:{args.seed}, missing_pattern:{args.missing_pattern}, missing_rate: {args.missing_rate}, loss_type: {args.loss_type}, seq: {args.seq_len}, pred: {args.pred_len}')
 
 # val_loss, val_mae, val_mse, val_mape, test_loss, test_mae, test_mse, test_mape = run_validation_and_print(args, model, val_loader, test_loader, criterion_mae)
 val_loss, val_mae, val_mse, val_mape, test_loss, test_mae, test_mse, test_mape = 0, 0, 0, 0, 0, 0, 0, 0

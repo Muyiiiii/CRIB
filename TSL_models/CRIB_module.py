@@ -269,7 +269,7 @@ class AttentionLayer(nn.Module):
 
         # torch.backends.cuda.enable_flash_sdp(enabled=True)
         # out = F.scaled_dot_product_attention(queries,keys,values,attn_mask=ts_scores)
-        # # mu.color_print(f'{}')
+        # # print(f'{}')
         # attn = None
 
         # out = out.reshape(B, L, -1)
@@ -427,7 +427,7 @@ class CRIB_Encoder(nn.Module):
         enc_out = self.enc_embedding_2(
             x=x_enc
         )  # [batch_size, model_dim, var_num, patch_num ]
-        # mu.color_print(f'enc_out embedding: {enc_out.shape}')
+        # print(f'enc_out embedding: {enc_out.shape}')
         enc_out = enc_out.permute(
             0, 3, 2, 1
         )  # [batch_size, patch_num, var_num, model_dim]
@@ -435,12 +435,12 @@ class CRIB_Encoder(nn.Module):
         enc_out = enc_out.reshape(
             B, -1, self.args.model_dim
         )  # [batch_size, patch_num * var_num, model_dim]
-        # mu.color_print(f'enc_out reshape: {enc_out.shape}')
+        # print(f'enc_out reshape: {enc_out.shape}')
 
         enc_out, attns = self.encoder(
             x=enc_out
         )  # [batch_size, patch_num * var_num, model_dim]
-        # mu.color_print(f'enc_out attention: {attns[1].shape}')
+        # print(f'enc_out attention: {attns[1].shape}')
 
         enc_out_tmp = enc_out.reshape(B, P, N, -1).permute(0, 2, 1, 3).reshape(B, N, -1)
         mapped = self.projector(enc_out_tmp)
