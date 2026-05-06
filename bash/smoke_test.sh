@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-DATA_PATH="/home/ubuntu/work/CRIB-Rebutal/data"
+DATA_PATH="./data"
 OUT_DIR="./result/smoke"
 mkdir -p "$OUT_DIR"
 
