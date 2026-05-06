@@ -20,7 +20,6 @@ from .CRIB_module import (
     EncoderLayer,
     AttentionLayer,
     Attention,
-    FlashAttention,
     CRIB_Encoder,
     CRIB_PredHead,
     RevIN,

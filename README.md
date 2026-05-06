@@ -49,7 +49,30 @@ In the code these correspond to the three switchable loss terms `1`, `2`, `3` (s
 - **Built-in datasets**: `ETTh1`, `ETTh2`, `ETTm1`, `ETTm2`, `Elec`, `PEMS`, `PEMS08`, `Metr`, `BeijingAir`, `Traffic`, `Weather`, `Exchange`, `Illness`, `AQI_ori` / `AQI_imp`, plus the `*_imputed` two-stage variants.
 - **Reproducible sweep scripts** for all main experiments — comparison (`bash/comp/`), ablation (`bash/ablation/`), parameter sensitivity (`bash/sen/`), and training cost (`bash/cost/`).
 
-## Installation
+## Installation (UV and Conda)
+
+The project is managed with [uv](https://docs.astral.sh/uv/). `pyproject.toml` declares the dependencies and `uv.lock` pins the exact resolved versions; `uv sync` reproduces the environment in one step:
+
+```bash
+uv sync --frozen          # creates .venv/ from uv.lock
+source .venv/bin/activate
+```
+
+Equivalent helper: `bash bash/setup_uv_env.sh`.
+
+The default environment targets Python 3.9 + PyTorch 2.1.0 with CUDA 11.8 (the cu118 wheel is pulled from the PyTorch index configured in `pyproject.toml`). To change the CUDA version, edit `[[tool.uv.index]]` in `pyproject.toml` and re-run `uv lock`.
+
+### Smoke test
+
+A 1-epoch end-to-end check (CRIB on ETTh1, ~45 s on a single GPU) lives at `bash/smoke_test.sh`. Edit `DATA_PATH` inside it to point at your data directory, then:
+
+```bash
+bash bash/smoke_test.sh
+```
+
+### Alternative: conda + pip
+
+The legacy path still works:
 
 ```bash
 conda create -n crib python=3.9 -y
@@ -57,7 +80,7 @@ conda activate crib
 pip install -r requirements.txt
 ```
 
-The default environment targets PyTorch 2.0 with CUDA 11.7. Adjust the torch / CUDA wheels in `requirements.txt` to match your hardware if needed.
+Note that `requirements.txt` pins torch 2.0.0 / CUDA 11.7; the uv setup uses a newer (and verified working) torch 2.1.0 / CUDA 11.8.
 
 ## Data preparation
 
@@ -67,13 +90,13 @@ Place the prepared datasets under `./data` so that the loaders in `utils/utils.p
 
 The paper evaluates CRIB on **12 real-world MTSF benchmarks**:
 
-| Group                   | Datasets                                                                 |
-| ----------------------- | ------------------------------------------------------------------------ |
-| Traffic                 | PEMS-BAY, Metr-LA                                                        |
-| Energy                  | Electricity, ETTh1, ETTh2, ETTm1, ETTm2                                  |
-| Weather / Air quality   | Weather, BeijingAir, AQI                                                 |
-| Finance                 | Exchange                                                                 |
-| Healthcare (naturally missing) | PhysioNet 2012                                                    |
+| Group                          | Datasets                                |
+| ------------------------------ | --------------------------------------- |
+| Traffic                        | PEMS-BAY, Metr-LA                       |
+| Energy                         | Electricity, ETTh1, ETTh2, ETTm1, ETTm2 |
+| Weather / Air quality          | Weather, BeijingAir, AQI                |
+| Finance                        | Exchange                                |
+| Healthcare (naturally missing) | PhysioNet 2012                          |
 
 Synthetic missingness is generated under three patterns — **point**, **block**, and **column** — at multiple missing rates. AQI and PhysioNet 2012 contain naturally occurring missing values and are used to evaluate the natural-missingness setting.
 
@@ -81,21 +104,21 @@ Synthetic missingness is generated under three patterns — **point**, **block**
 
 Variable counts (`utils/args.py:115-186`):
 
-| Dataset key                     | Paper name                  | #Variables |
-| ------------------------------- | --------------------------- | ---------- |
-| `ETTh1` / `ETTh2`               | ETTh1 / ETTh2               | 7          |
-| `ETTm1` / `ETTm2`               | ETTm1 / ETTm2               | 7          |
-| `Elec`                          | Electricity                 | 321        |
-| `Metr`                          | Metr-LA                     | 207        |
-| `PEMS`                          | PEMS-BAY                    | 325        |
-| `PEMS08`                        | PEMS08                      | 170        |
-| `BeijingAir`                    | BeijingAir                  | 7          |
-| `BeijingAir_old`                | BeijingAir (36-var variant) | 36         |
-| `Traffic`                       | Traffic                     | 862        |
-| `Weather`                       | Weather                     | 21         |
-| `Exchange`                      | Exchange                    | 8          |
-| `Illness`                       | Illness                     | 7          |
-| `AQI_ori` / `AQI_imp`           | AQI (raw / imputed)         | 36         |
+| Dataset key               | Paper name                  | #Variables |
+| ------------------------- | --------------------------- | ---------- |
+| `ETTh1` / `ETTh2`     | ETTh1 / ETTh2               | 7          |
+| `ETTm1` / `ETTm2`     | ETTm1 / ETTm2               | 7          |
+| `Elec`                  | Electricity                 | 321        |
+| `Metr`                  | Metr-LA                     | 207        |
+| `PEMS`                  | PEMS-BAY                    | 325        |
+| `PEMS08`                | PEMS08                      | 170        |
+| `BeijingAir`            | BeijingAir                  | 7          |
+| `BeijingAir_old`        | BeijingAir (36-var variant) | 36         |
+| `Traffic`               | Traffic                     | 862        |
+| `Weather`               | Weather                     | 21         |
+| `Exchange`              | Exchange                    | 8          |
+| `Illness`               | Illness                     | 7          |
+| `AQI_ori` / `AQI_imp` | AQI (raw / imputed)         | 36         |
 
 Datasets ending in `_imputed` (e.g. `ETTh1_imputed`, `Elec_imputed`, `PEMS_imputed`, `Metr_imputed`) and the `AQI_ori` / `AQI_imp` pair load pre-imputed series and combine them with the original raw values via the missing mask — this reproduces the *Imputed* (two-stage) variant of each baseline.
 
@@ -138,25 +161,25 @@ The default `models=(...)` array covers TSL forecasters (CRIB, DLinear, SegRNN, 
 
 ## Key arguments
 
-| Argument            | Default | Description                                                                     |
-| ------------------- | ------- | ------------------------------------------------------------------------------- |
-| `--model`           | `CRIB`  | One of the built-in models listed above.                                        |
-| `--dataset`         | `ETTh1` | Dataset key (see table above).                                                  |
-| `--missing_pattern` | `col`   | `point`, `block`, or `col`.                                                     |
-| `--missing_rate`    | `0.7`   | Fraction of entries to mask.                                                    |
-| `--seq_len`         | `24`    | Input sequence length. Must be divisible by `--patch_len`.                      |
-| `--pred_len`        | `24`    | Prediction horizon.                                                             |
-| `--patch_len`       | `8`     | Patch size used by CRIB / patch-based baselines.                                |
-| `--model_dim`       | `32`    | Hidden dimension.                                                               |
-| `--loss_type`       | `123`   | Subset of `{1,2,3}`: prediction / consistency / IB-compactness terms (2, 3 are CRIB-only). |
-| `--IB_weight`       | `1.0`   | Outer IB weight $\alpha$ in $\alpha(\mathcal{L}_{\text{Comp}}+\beta\mathcal{L}_{\text{Pred}})+\gamma\mathcal{L}_{\text{Consis}}$. |
-| `--KL_weight`       | `1e-6`  | Weight of the IB compactness / KL term ($\mathcal{L}_{\text{Comp}}$).           |
-| `--Consis_weight`   | `1.0`   | Weight $\gamma$ of the consistency regularization ($\mathcal{L}_{\text{Consis}}$). |
-| `--train_epochs`    | `10`    | Number of training epochs.                                                      |
-| `--learning_rate`   | `0.001` | Adam learning rate.                                                             |
-| `--use_amp`         | `True`  | Enable mixed precision.                                                         |
-| `--seed`            | `123`   | Random seed (`-1` disables seeding).                                            |
-| `--csv_path`        | -       | CSV file to which final test metrics are appended.                              |
+| Argument              | Default   | Description                                                                                                                          |
+| --------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `--model`           | `CRIB`  | One of the built-in models listed above.                                                                                             |
+| `--dataset`         | `ETTh1` | Dataset key (see table above).                                                                                                       |
+| `--missing_pattern` | `col`   | `point`, `block`, or `col`.                                                                                                    |
+| `--missing_rate`    | `0.7`   | Fraction of entries to mask.                                                                                                         |
+| `--seq_len`         | `24`    | Input sequence length. Must be divisible by `--patch_len`.                                                                         |
+| `--pred_len`        | `24`    | Prediction horizon.                                                                                                                  |
+| `--patch_len`       | `8`     | Patch size used by CRIB / patch-based baselines.                                                                                     |
+| `--model_dim`       | `32`    | Hidden dimension.                                                                                                                    |
+| `--loss_type`       | `123`   | Subset of `{1,2,3}`: prediction / consistency / IB-compactness terms (2, 3 are CRIB-only).                                         |
+| `--IB_weight`       | `1.0`   | Outer IB weight$\alpha$ in $\alpha(\mathcal{L}_{\text{Comp}}+\beta\mathcal{L}_{\text{Pred}})+\gamma\mathcal{L}_{\text{Consis}}$. |
+| `--KL_weight`       | `1e-6`  | Weight of the IB compactness / KL term ($\mathcal{L}_{\text{Comp}}$).                                                              |
+| `--Consis_weight`   | `1.0`   | Weight$\gamma$ of the consistency regularization ($\mathcal{L}_{\text{Consis}}$).                                                |
+| `--train_epochs`    | `10`    | Number of training epochs.                                                                                                           |
+| `--learning_rate`   | `0.001` | Adam learning rate.                                                                                                                  |
+| `--use_amp`         | `True`  | Enable mixed precision.                                                                                                              |
+| `--seed`            | `123`   | Random seed (`-1` disables seeding).                                                                                               |
+| `--csv_path`        | -         | CSV file to which final test metrics are appended.                                                                                   |
 
 Run `python train.py --help` for the full list of options.
 
@@ -168,7 +191,7 @@ After each run, `train.py` appends a row to `--csv_path` containing the experime
 
 ```
 CRIB/
-├── bash/                # bash_train.sh — unified sweep script
+├── bash/                # bash_train.sh (sweep) | smoke_test.sh | setup_uv_env.sh
 ├── layers/              # shared transformer / embedding / Conv_Blocks
 ├── NeuralCDE/           # NeuralCDE baseline
 ├── pic/                 # figures used in the README
@@ -180,5 +203,7 @@ CRIB/
 │   └── TimesNet.py / TimeXer.py / WPMixer.py / ...
 ├── utils/               # args, dataset, models, training, metrics, masking, ...
 ├── train.py             # unified entry point (TSL forecasters / PyPOTS / NeuralCDE)
-└── requirements.txt
+├── pyproject.toml       # uv-managed dependencies + PyTorch cu118 index
+├── uv.lock              # cross-platform locked versions (commit this)
+└── requirements.txt     # legacy pip fallback
 ```
