@@ -1,7 +1,6 @@
+import os
 import torch
 import numpy as np
-import os
-import random
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 
@@ -10,39 +9,55 @@ from .dataClass import (
     MyDataset,
 )
 
-def set_seed(seed):
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+DATA_PATH={
+    'Metr': 'metr_la/metr_la.h5',
+    'PEMS': 'pems_bay/pems_bay.h5',
+    'ETTh1': 'ETT-small/ETTh1.csv',
+    'ETTh2': 'ETT-small/ETTh2.csv',
+    'ETTm1': 'ETT-small/ETTm1.csv',
+    'ETTm2': 'ETT-small/ETTm2.csv',
+    'Elec': 'Electricity/electricity.txt',
+    'BeijingAir_old': 'air_quality/small36.h5',
+    'PEMS08': 'PEMS08/PEMS08.npz',
+    'BeijingAir': 'BeijingAirQuality/BeijingAirQuality.xlsx',
+    'Exchange': 'exchange_rate/exchange_rate.csv',
+    'Illness': 'illness/national_illness.csv',
+    'Traffic': 'traffic/traffic.csv',
+    'Weather': 'weather/weather.csv',
+    'AQI_ori': 'AQI/pm25_ground.txt',
+}
 
-def criterion_mape(y_true, y_pred, eps=1e-8):
-    """
-    Args:
-        y_true (torch.Tensor): Ground truth values, shape (batch_size, ...)
-        y_pred (torch.Tensor): Predicted values, shape (batch_size, ...)
-        eps (float): Small constant to avoid division by zero
-    Returns:
-        torch.Tensor: MAPE (scalar)
-    """
-    # Ensure inputs are torch tensors
-    y_true = torch.as_tensor(y_true)
-    y_pred = torch.as_tensor(y_pred)
+def convert_dataset_to_pypots_format(train_dataset, val_dataset, test_dataset):
+    B, P, N, L = train_dataset.data.shape
+    train_dataset.data = train_dataset.data.permute(0, 2, 1, 3).reshape(B, N, P * L).permute(0, 2, 1) # [B, P*L, N]=[B, T, N]
+    train_dataset.mask_1 = train_dataset.mask_1[:, :P, ...].permute(0, 2, 1, 3).reshape(B, N, P * L).permute(0, 2, 1) # [B, P*L, N]=[B, T, N]
     
-    # Calculate absolute percentage error
-    ape = torch.abs((y_true - y_pred) / (y_true + eps))
-    
-    # Take mean
-    mape = torch.mean(ape)
-    
-    return mape
+    B, P, N, L = val_dataset.data.shape
+    val_dataset.data = val_dataset.data.permute(0, 2, 1, 3).reshape(B, N, P * L).permute(0, 2, 1)
+    val_dataset.mask_1 = val_dataset.mask_1[:, :P, ...].permute(0, 2, 1, 3).reshape(B, N, P * L).permute(0, 2, 1)
+
+    B, P, N, L = test_dataset.data.shape
+    test_dataset.data = test_dataset.data.permute(0, 2, 1, 3).reshape(B, N, P * L).permute(0, 2, 1)
+    test_dataset.mask_1 = test_dataset.mask_1[:, :P, ...].permute(0, 2, 1, 3).reshape(B, N, P * L).permute(0, 2, 1)
+
+    train_set_pypots = {"X": train_dataset.data * train_dataset.mask_1, 
+                        "X_ori": train_dataset.pred,
+                        "indicating_mask": train_dataset.mask_1}
+    val_set_pypots = {"X": val_dataset.data * val_dataset.mask_1,
+                      "X_ori": val_dataset.pred,
+                      "indicating_mask": val_dataset.mask_1}
+    test_set_pypots = {"X": test_dataset.data * test_dataset.mask_1,
+                       "X_ori": test_dataset.pred,
+                       "indicating_mask": test_dataset.mask_1}
+
+    return train_set_pypots, val_set_pypots, test_set_pypots
+
+
 
 def load_missing_raw_data(args, dataset):
 
     if dataset=='Metr':
-        path = os.path.join('./data/metr_la/', 'metr_la.h5')
+        path = os.path.join(args.data_path, DATA_PATH[dataset])
         data = pd.read_hdf(path)
         data = np.array(data)
         # data = data[:, :, None]
@@ -54,9 +69,8 @@ def load_missing_raw_data(args, dataset):
         elif args.missing_pattern=='block':
             missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
 
-
     elif dataset=='PEMS':
-        path = os.path.join('./data/pems_bay/', 'pems_bay.h5')
+        path = os.path.join(args.data_path, DATA_PATH[dataset])
         data = pd.read_hdf(path)
         data = np.array(data)
         # data = data[:, :, None]
@@ -68,9 +82,68 @@ def load_missing_raw_data(args, dataset):
         elif args.missing_pattern=='block':
             missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
 
+    elif dataset in ['ETTh1', 'ETTh2', 'ETTm1', 'ETTm2']:
+        df_raw = pd.read_csv(os.path.join(args.data_path, DATA_PATH[dataset]))
+        data=np.array(df_raw)
+        data=data[::,1:]
+        if args.missing_pattern=='point':
+            missing_mask = get_missing_mask(data, args.missing_rate)
+        elif args.missing_pattern=='col':
+            missing_mask=get_col_dropout_mask(data, args.missing_rate)
+        elif args.missing_pattern=='block':
+            missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
+        # data = data[:, :, None].astype('float32')
+        data = data[:, :].astype('float32')
+        # missing_mask = missing_mask[:, :, None].astype('int32')
+        missing_mask = missing_mask[:, :].astype('int32')
+    
+    elif dataset == 'Exchange':
+        df_raw = pd.read_csv(os.path.join(args.data_path, DATA_PATH[dataset]))
+        data=np.array(df_raw)
+        data=data[::,1:]
+        if args.missing_pattern=='point':
+            missing_mask = get_missing_mask(data, args.missing_rate)
+        elif args.missing_pattern=='col':
+            missing_mask=get_col_dropout_mask(data, args.missing_rate)
+        elif args.missing_pattern=='block':
+            missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
+        # data = data[:, :, None].astype('float32')
+        data = data[:, :].astype('float32')
+        # missing_mask = missing_mask[:, :, None].astype('int32')
+        missing_mask = missing_mask[:, :].astype('int32')
 
-    elif dataset=='ETTh1':
-        df_raw = pd.read_csv('./data/ETT/ETTh1.csv')
+    elif dataset == 'Illness':
+        df_raw = pd.read_csv(os.path.join(args.data_path, DATA_PATH[dataset]))
+        data=np.array(df_raw)
+        data=data[::,1:]
+        if args.missing_pattern=='point':
+            missing_mask = get_missing_mask(data, args.missing_rate)
+        elif args.missing_pattern=='col':
+            missing_mask=get_col_dropout_mask(data, args.missing_rate)
+        elif args.missing_pattern=='block':
+            missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
+        # data = data[:, :, None].astype('float32')
+        data = data[:, :].astype('float32')
+        # missing_mask = missing_mask[:, :, None].astype('int32')
+        missing_mask = missing_mask[:, :].astype('int32')
+
+    elif dataset == 'Traffic':
+        df_raw = pd.read_csv(os.path.join(args.data_path, DATA_PATH[dataset]))
+        data=np.array(df_raw)
+        data=data[::,1:]
+        if args.missing_pattern=='point':
+            missing_mask = get_missing_mask(data, args.missing_rate)
+        elif args.missing_pattern=='col':
+            missing_mask=get_col_dropout_mask(data, args.missing_rate)
+        elif args.missing_pattern=='block':
+            missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
+        # data = data[:, :, None].astype('float32')
+        data = data[:, :].astype('float32')
+        # missing_mask = missing_mask[:, :, None].astype('int32')
+        missing_mask = missing_mask[:, :].astype('int32')
+
+    elif dataset == 'Weather':
+        df_raw = pd.read_csv(os.path.join(args.data_path, DATA_PATH[dataset]))
         data=np.array(df_raw)
         data=data[::,1:]
         if args.missing_pattern=='point':
@@ -86,7 +159,7 @@ def load_missing_raw_data(args, dataset):
 
     elif dataset == 'Elec':
         data_list = []
-        with open('./data/Electricity/electricity.txt', 'r') as f:
+        with open(os.path.join(args.data_path, DATA_PATH[dataset]), 'r') as f:
             reader = f.readlines()
             for row in reader:
                 data_list.append(row.split(','))
@@ -104,7 +177,7 @@ def load_missing_raw_data(args, dataset):
         missing_mask = missing_mask[:, :].astype('int32')
 
     elif dataset=='BeijingAir_old':
-        data = pd.DataFrame(pd.read_hdf('./data/air_quality/small36.h5', 'pm25'))
+        data = pd.DataFrame(pd.read_hdf(os.path.join(args.data_path, DATA_PATH[dataset]), 'pm25'))
         data=np.array(data)
         eval_mask=~np.isnan(data)
         if args.missing_pattern=='point':
@@ -120,7 +193,7 @@ def load_missing_raw_data(args, dataset):
         missing_mask = missing_mask[:, :].astype('int32')
 
     elif dataset=='PEMS08':
-        data=np.load('./data/PEMS08/PEMS08.npz')["data"][..., 0]
+        data=np.load(os.path.join(args.data_path, DATA_PATH[dataset]))["data"][..., 0]
         data = data[:, :]
         if args.missing_pattern=='point':
             missing_mask = get_missing_mask(data, args.missing_rate)
@@ -130,7 +203,7 @@ def load_missing_raw_data(args, dataset):
             missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
 
     elif dataset=='BeijingAir':
-        data=pd.read_excel('./data/BeijingAirQuality/BeijingAirQuality.xlsx')
+        data=pd.read_excel(os.path.join(args.data_path, DATA_PATH[dataset]))
         data=data.to_numpy()[:,:]
         if args.missing_pattern=='point':
             missing_mask = get_missing_mask(data, args.missing_rate)
@@ -138,14 +211,52 @@ def load_missing_raw_data(args, dataset):
             missing_mask=get_col_dropout_mask(data, args.missing_rate)
         elif args.missing_pattern=='block':
             missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
+
     elif 'imputed' in dataset:
-        data=np.load(f"./data/imputed_TimesNet/imputation_0.4_TimesNet_My{dataset}_impu{args.missing_rate}/imputed.npy")
+        data=np.load(os.path.join(args.data_path, f"imputed_TimesNet/imputation_0.4_TimesNet_My{dataset}_impu{args.missing_rate}/imputed.npy"))
         if args.missing_pattern=='point':
             missing_mask = get_missing_mask(data, args.missing_rate)
         elif args.missing_pattern=='col':
             missing_mask=get_col_dropout_mask(data, args.missing_rate)
         elif args.missing_pattern=='block':
             missing_mask=get_block_missing_mask_fixed_size(data, args.missing_rate, block_size=(args.missing_block_width, args.missing_block_height))
+    
+    elif dataset == 'AQI_ori':
+        df_raw = pd.read_csv(os.path.join(args.data_path, DATA_PATH[dataset]))
+        df_cols=list(df_raw.columns)
+        df_data = df_raw[df_cols[1:]]
+        
+        missing_mask = (~np.isnan(df_data)).astype('int32').values
+
+        print("AQI is trained on its own missing mask from the dataset.")
+        
+        num_train = int(len(df_data) * (1 - args.test_ratio - args.val_ratio))
+        train_slice = df_data.iloc[:num_train]
+        train_means = train_slice.mean(numeric_only=True)
+        df_data = df_data.fillna(train_means)
+        
+        data=df_data.values.astype('float32')
+        
+    elif dataset == 'AQI_imp':
+        df_raw = pd.read_csv(os.path.join(args.data_path, DATA_PATH['AQI_ori']))
+        df_cols=list(df_raw.columns)
+        df_data = df_raw[df_cols[1:]]
+        
+        missing_mask = (~np.isnan(df_data)).astype('int32').values
+    
+        df_data = df_data.fillna(0)
+        data=df_data.values.astype('float32')
+        
+        print("AQI is trained on its own missing mask from the dataset.")
+        
+        data_imputed=np.load(os.path.join(args.data_path, f"imputed_TimesNet/AQI/preds_inverse.npy"))
+        data_imputed=data_imputed.reshape(-1, data_imputed.shape[-1]).astype('float32')
+    
+        data_raw_imputed_len = data_imputed.shape[0]
+        data[:data_raw_imputed_len, :] = data[:data_raw_imputed_len, :] * missing_mask[:data_raw_imputed_len, :] + data_imputed * (1 - missing_mask[:data_raw_imputed_len, :])
+        
+        missing_mask = np.ones_like(data).astype('int32')
+
     else:
         print(f'{dataset} is not a valid dataset.')
 
@@ -393,5 +504,25 @@ def load_dataset(args, scaler=None):
     train_dataset=MyDataset(args=args, data=train_x, pred=train_y, mask_1=train_mask_1)
     val_dataset=MyDataset(args=args, data=val_x, pred=val_y, mask_1=val_mask_1)
     test_dataset=MyDataset(args=args, data=test_x, pred=test_y, mask_1=test_mask_1)
+    
+    train_dataset, val_dataset, test_dataset = process_imputed_dataset(args, train_dataset, val_dataset, test_dataset)
 
     return train_dataset, val_dataset, test_dataset, scaler
+
+def process_imputed_dataset(args, train_dataset, val_dataset, test_dataset):
+    if 'imputed' in args.dataset:
+        print(f"\n\nLoading original raw data for {args.dataset.replace('_imputed','')} ...\n")
+        temp_args=args
+        temp_args.dataset=args.dataset.replace('_imputed','')
+
+        train_dataset_ori, val_dataset_ori, test_dataset_ori, _ = load_dataset(args=temp_args, scaler=None)
+
+        train_dataset.data=train_dataset.data*train_dataset.mask_1[:,:3,...] + train_dataset_ori.data*(1-train_dataset.mask_1[:,:3,...])
+        val_dataset.data=val_dataset.data*val_dataset.mask_1[:,:3,...] + val_dataset_ori.data*(1-val_dataset.mask_1[:,:3,...])
+        test_dataset.data=test_dataset.data*test_dataset.mask_1[:,:3,...] + test_dataset_ori.data*(1-test_dataset.mask_1[:,:3,...])
+
+        train_dataset.pred=train_dataset_ori.pred
+        val_dataset.pred=val_dataset_ori.pred
+        test_dataset.pred=test_dataset_ori.pred
+        
+    return train_dataset, val_dataset, test_dataset

@@ -10,5 +10,6 @@ from .PAttn import Model as PAttn
 from .KANAD import Model as KANAD
 from .MultiPatchFormer import Model as MultiPatchFormer
 from .FreTS import Model as FreTS
+from .TimesNet import Model as TimesNet
 
 from .CRIB import CRIB

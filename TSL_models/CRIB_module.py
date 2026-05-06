@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 import torch.nn as nn
 from torch.nn.utils import weight_norm
-from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
+# from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
 
 from .CRIB_utils import TriangularCausalMask
 from .CRIB_embedding import (
@@ -311,48 +311,48 @@ class Attention(nn.Module):
             return (V.contiguous(), None)
 
 
-class FlashAttention(nn.Module):
-    def __init__(
-        self, mask_flag=True, scale=None, attention_dropout=0.1, output_attention=False
-    ):
-        super().__init__()
-        self.scale = scale
-        self.mask_flag = mask_flag
-        self.output_attention = output_attention
-        self.dropout = nn.Dropout(attention_dropout)
-        self.dropout_p = attention_dropout
+# class FlashAttention(nn.Module):
+#     def __init__(
+#         self, mask_flag=True, scale=None, attention_dropout=0.1, output_attention=False
+#     ):
+#         super().__init__()
+#         self.scale = scale
+#         self.mask_flag = mask_flag
+#         self.output_attention = output_attention
+#         self.dropout = nn.Dropout(attention_dropout)
+#         self.dropout_p = attention_dropout
 
-    def forward(self, queries, keys, values, attn_mask, tau=None, delta=None):
-        # B, L, H, E = queries.shape # [batch_size, seq_len, hidden_size, embed_size]
-        # _, S, _, D = values.shape # [batch_size, pred_len, hidden_size, embed_size]
-        # scale = self.scale or 1. / math.sqrt(E)
+#     def forward(self, queries, keys, values, attn_mask, tau=None, delta=None):
+#         # B, L, H, E = queries.shape # [batch_size, seq_len, hidden_size, embed_size]
+#         # _, S, _, D = values.shape # [batch_size, pred_len, hidden_size, embed_size]
+#         # scale = self.scale or 1. / math.sqrt(E)
 
-        # scores = torch.einsum("blhe,bshe->bhls", queries, keys) # head and head之间不用计算，因为并行也是浪费，但transpose之后head和head的计算能并行了
+#         # scores = torch.einsum("blhe,bshe->bhls", queries, keys) # head and head之间不用计算，因为并行也是浪费，但transpose之后head和head的计算能并行了
 
-        # A = self.dropout(torch.softmax(scale * scores, dim=-1))
-        # V = torch.einsum("bhls,bshd->blhd", A, values)
+#         # A = self.dropout(torch.softmax(scale * scores, dim=-1))
+#         # V = torch.einsum("bhls,bshd->blhd", A, values)
 
-        # if self.output_attention:
-        #     return (V.contiguous(), A)
-        # else:
-        #     return (V.contiguous(), None)
+#         # if self.output_attention:
+#         #     return (V.contiguous(), A)
+#         # else:
+#         #     return (V.contiguous(), None)
 
-        qkv = torch.stack((queries, keys, values), dim=2)
+#         qkv = torch.stack((queries, keys, values), dim=2)
 
-        # set alibi slopes
-        alibi_slopes = torch.randn(queries.shape[2]).to(qkv.device)
+#         # set alibi slopes
+#         alibi_slopes = torch.randn(queries.shape[2]).to(qkv.device)
 
-        output = flash_attn_qkvpacked_func(
-            qkv=qkv,
-            dropout_p=self.dropout_p,
-            softmax_scale=self.scale,
-            causal=False,
-            window_size=(-1, -1),
-            alibi_slopes=alibi_slopes,
-            deterministic=False,
-        )
+#         output = flash_attn_qkvpacked_func(
+#             qkv=qkv,
+#             dropout_p=self.dropout_p,
+#             softmax_scale=self.scale,
+#             causal=False,
+#             window_size=(-1, -1),
+#             alibi_slopes=alibi_slopes,
+#             deterministic=False,
+#         )
 
-        return (output, None)
+#         return (output, None)
 
 
 class CRIB_Encoder(nn.Module):

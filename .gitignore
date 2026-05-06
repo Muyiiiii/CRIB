@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code local state
+.claude/
+
+# Datasets and large binaries
+data/
+*.npz
+*.npy
+*.h5
+*.hdf5
+*.parquet
+
+# Training artifacts
+log/
+result/
+*.csv
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+
+# Logs / temp
+*.log
+tmp/
+temp/
+
+# Paper / draft (uncomment if you don't want to commit)
+# *.pdf
+# sections/
